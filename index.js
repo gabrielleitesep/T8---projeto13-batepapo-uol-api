@@ -48,7 +48,7 @@ app.post("/participants", async (req, res) => {
             return
         }
         await db.collection('participants').insertOne({ name: name, lastStatus: Date.now() })
-        await db.collection('messages').insertOne({ from: name, to: 'Todos', text: 'entrar na sala...', type: 'status', time: dayjs().format("HH:mm:ss") })
+        await db.collection('messages').insertOne({ from: name, to: '', text: 'entrou na sala...', type: 'status', time: dayjs().format("HH:mm:ss") })
         res.send(201);
 
     } catch (err) {
@@ -70,10 +70,10 @@ app.get("/participants", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
 
-    const {to, text, type} = req.body
+    const { to, text, type } = req.body
     const { user } = req.headers
 
-    const validacao = mensagensJOI.validate({to, text, type}, { abortEarly: false })
+    const validacao = mensagensJOI.validate({ to, text, type }, { abortEarly: false })
     if (validacao.err) {
         const erros = validacao.err.details.map((d) => d.message)
         res.status(422).send(erros)
@@ -85,8 +85,8 @@ app.post("/messages", async (req, res) => {
         return
     }
 
-    try{
-        await db.collection("mensagem").insertOne({
+    try {
+        await db.collection("messages").insertOne({
             from: user,
             to: to,
             text: text,
@@ -94,7 +94,7 @@ app.post("/messages", async (req, res) => {
             time: dayjs().format("HH:mm:ss")
         });
         res.sendStatus(201);
-    }catch(err){
+    } catch (err) {
         res.status(500).send(err.message);
     }
 })
@@ -102,11 +102,11 @@ app.post("/messages", async (req, res) => {
 app.get("/messages", async (req, res) => {
 
     const limit = Number(req.query.limit)
-    const {user} = req.headers
+    const { user } = req.headers
 
     try {
         const messages = await db.collection("messages").find().toArray()
-        const permitidas = messages.filter(message =>{
+        const permitidas = messages.filter(message => {
             const publicas = message.type === "message"
             const recebidas = message.to === user
             const enviadas = message.from === user
@@ -118,4 +118,21 @@ app.get("/messages", async (req, res) => {
     } catch (err) {
         console.log(err)
     }
+})
+
+app.post("/status", async (req, res) => {
+    const { user } = req.headers
+
+    try {
+        const usuario = await db.collection('participants').findOne({ name: user })
+        if (!usuario) {
+            res.sendStatus(409)
+            return
+        }
+        await db.collection("participants").updateOne({ name: user }, { $set: { lastStatus: Date.now() } })
+        res.sendStatus(200)
+    } catch (err) {
+        res.sendStatus(404)
+    }
+
 })
