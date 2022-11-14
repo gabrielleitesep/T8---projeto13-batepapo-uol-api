@@ -36,23 +36,23 @@ app.post("/participants", async (req, res) => {
 
     const { name } = req.body
     const validacao = participantesJOI.validate({ name }, { abortEarly: false })
-    if (validacao.err) {
-        const erros = validacao.err.details.map((d) => d.message)
+    if (validacao.error) {
+        const erros = validacao.error.details.map((d) => d.message)
         res.status(422).send(erros)
         return
     }
     try {
         const usuario = await db.collection('participants').findOne({ name: name })
         if (usuario) {
-            res.send(409)
+            res.status(409).send("Usuário já cadastrado")
             return
         }
         await db.collection('participants').insertOne({ name: name, lastStatus: Date.now() })
         await db.collection('messages').insertOne({ from: name, to: '', text: 'entrou na sala...', type: 'status', time: dayjs().format("HH:mm:ss") })
         res.send(201);
 
-    } catch (err) {
-        res.status(500).send(err.message)
+    } catch (error) {
+        res.status(500).send(error.message)
     }
 
 })
@@ -63,8 +63,8 @@ app.get("/participants", async (req, res) => {
         const participants = await db.collection("participants").find().toArray()
         res.send(participants)
 
-    } catch (err) {
-        console.log(err)
+    } catch (error) {
+        console.log(error)
     }
 })
 
@@ -74,8 +74,8 @@ app.post("/messages", async (req, res) => {
     const { user } = req.headers
 
     const validacao = mensagensJOI.validate({ to, text, type }, { abortEarly: false })
-    if (validacao.err) {
-        const erros = validacao.err.details.map((d) => d.message)
+    if (validacao.error) {
+        const erros = validacao.error.details.map((d) => d.message)
         res.status(422).send(erros)
         return
     }
@@ -94,8 +94,8 @@ app.post("/messages", async (req, res) => {
             time: dayjs().format("HH:mm:ss")
         });
         res.sendStatus(201);
-    } catch (err) {
-        res.status(500).send(err.message);
+    } catch (error) {
+        res.status(500).send(error.message);
     }
 })
 
@@ -115,8 +115,8 @@ app.get("/messages", async (req, res) => {
         })
         res.send(permitidas.slice(-limit))
 
-    } catch (err) {
-        console.log(err)
+    } catch (error) {
+        console.log(error)
     }
 })
 
@@ -126,12 +126,12 @@ app.post("/status", async (req, res) => {
     try {
         const usuario = await db.collection('participants').findOne({ name: user })
         if (!usuario) {
-            res.sendStatus(409)
+            res.status(409).send("Usuário não encontrado!")
             return
         }
         await db.collection("participants").updateOne({ name: user }, { $set: { lastStatus: Date.now() } })
-        res.sendStatus(200)
-    } catch (err) {
+        res.status(200).send("Status atualizado!")
+    } catch (error) {
         res.sendStatus(404)
     }
 
